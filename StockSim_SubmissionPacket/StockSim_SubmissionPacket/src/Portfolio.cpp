@@ -229,8 +229,6 @@ void Portfolio::printHoldings() const {
     cout << "Cash     : $" << cashBalance << endl;
     cout << "Total Val: $" << getTotalValue() << endl;
     cout << "Return   : " << getTotalUnrealizedReturn() << "%" << endl;
-    cout << "------------------------------" << endl;
-
     if (holdings.empty()) {
         cout << "No positions" << endl;
         return;
@@ -245,7 +243,6 @@ void Portfolio::printHoldings() const {
         cout << "Avg Cost: $" << holdings[i].avgCostBasis << endl;
         cout << "Curr Price: $" << holdings[i].currentPrice << endl;
         cout << "Return : " << ret << "%" << endl;
-        cout << "------------------------------" << endl;
     }
 }
 
