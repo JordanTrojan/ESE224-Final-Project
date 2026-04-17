@@ -4,6 +4,7 @@
 #include "FinancialAsset.h"
 #include "PriceHistory.h"
 #include <string>
+#include <iostream>
 using namespace std;
 
 // Represents a single publicly traded stock (e.g., AAPL, TSLA).

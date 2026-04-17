@@ -1,0 +1,33 @@
+StockSim - ESE 224 TODO
+========================
+
+WEEK 1
+-------
+[X] PriceHistory.cpp
+[X] CSVParser.cpp
+[X] FinancialAsset.cpp
+[X] Stock.cpp
+[ ] ETF.cpp
+WEEK 2
+-------
+[ ] CircularQueue.cpp
+[ ] TradeStack.cpp
+[ ] OrderQueue.cpp
+[ ] StockBST.cpp
+[ ] Portfolio.cpp
+
+WEEK 3
+-------
+[ ] TradingStrategy.cpp
+[ ] FixedSIPStrategy.cpp
+[ ] DynamicSIPStrategy.cpp
+[ ] GoldenCrossStrategy.cpp
+[ ] MomentumStrategy.cpp
+[ ] main.cpp
+
+REPORT
+-------
+[ ] Report.pdf
+[ ] PROMPTS.md
+[ ] Screenshots (output/ folder)
+[ ] Fill out AI form: https://forms.gle/YxRG38cvrwspBE5Q7
