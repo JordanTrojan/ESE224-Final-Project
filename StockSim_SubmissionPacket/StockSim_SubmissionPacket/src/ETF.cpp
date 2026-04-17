@@ -21,7 +21,28 @@ void ETF::setExpenseRatio (double ratio) {
 }
 
 double ETF::calculate10YearCAGR() const {
+    if (!history || history->getSize() == 0) {
+        return 0.0;
+    }
 
+    // Get the most recent date's year
+    double endPrice = history->getTail()->close;
+    string endDate = history->getTail()->date;
+    int endYear = CSVParser::extractYear(endDate);
+    int startYear = endYear - 10;
+
+    // walk forward until we find the target year
+    double startPrice = 0.0;
+    for (PriceHistory::ReverseIterator it = history->rbegin(); it != history->rend(); ++it) {
+        if (CSVParser::extractYear((*it).date) == startYear) {
+            startPrice = (*it).close;
+            break;
+        }
+    }
+
+    if (startPrice == 0.0) return 0.0;  // couldn't find 10 years back
+
+    return (pow(endPrice / startPrice, 1.0 / 10.0) - 1.0) * 100.0;
 }
 
 void ETF::printSummary() const {

@@ -90,12 +90,6 @@ void Stock::printSummary() const {
     }
     cout << "Return  : " << totalReturn << "%" << endl;
 }
-
-void ETF::printSummary() const {
-    Stock::printSummary();
-    cout << "Expense : " << expenseRatio * 100.0 << "%" << endl;
-    cout << "10Y CAGR: " << calculate10YearCAGR()  << "%" << endl;
-}
     
 
 string Stock::getType() const {

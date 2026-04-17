@@ -7,14 +7,14 @@ WEEK 1
 [X] CSVParser.cpp
 [X] FinancialAsset.cpp
 [X] Stock.cpp
-[ ] ETF.cpp
+[X] ETF.cpp
 WEEK 2
 -------
-[ ] CircularQueue.cpp
-[ ] TradeStack.cpp
-[ ] OrderQueue.cpp
+[X] CircularQueue.cpp
+[X] TradeStack.cpp
+[X] OrderQueue.cpp
 [ ] StockBST.cpp
-[ ] Portfolio.cpp
+[X] Portfolio.cpp
 
 WEEK 3
 -------
