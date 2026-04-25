@@ -2,8 +2,11 @@
 #define TRADING_STRATEGY_H
 
 #include "PriceHistory.h"
+#include "CSVParser.h"
+#include <iostream>
 #include <string>
 #include <vector>
+#include <cmath>
 using namespace std;
 
 // Holds the results of a single strategy backtest run.

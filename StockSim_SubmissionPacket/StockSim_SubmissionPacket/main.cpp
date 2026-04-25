@@ -2,8 +2,8 @@
  * ESE 224 – Final Project: StockSim
  * Historical Market Analyzer & Trading Strategy Simulator
  *
- * Student Name : ___________________________
- * Student ID   : ___________________________
+ * Student Name : Jordan Trojan | Evan Attrino
+ * Student ID   : 116147886 | 116141819
  *
  * Instructions:
  *   1. Implement all classes listed in the header files under include/.
@@ -154,7 +154,28 @@ void menuLoadData(StockManager<ETF>& etfManager, StockManager<Stock>& stockManag
     //  For SPY: create a new ETF("SPY", "SPDR S&P 500 ETF", "Index", 0.0003),
     //           call loadFromCSV("data/SPY.csv"), add to etfManager.
     //  For AAPL/TSLA: create Stock objects, load CSV, add to stockManager.
-    cout << "(TODO: implement menuLoadData)" << endl;
+    string ticker;
+    string name;
+    string sector;
+    double expense;
+    cout << "Enter ticker to load(SPY, AAPL, TSLA, or all)" << endl;
+    cin >> ticker;
+    if(ticker == "SPY"){
+        cout << "Enter name" << endl;
+        cin >> name; 
+        cout << "Enter sector" << endl;
+        cin >> sector;
+        cout << "Enter expense ratio" << endl;
+        cin >> expense;
+        ETF add = ETF(ticker, name, sector, expense);
+        CSVParser::loadHistory("data/SPY.csv");
+        
+    }else if((ticker == "AAPL") || (ticker == "TSLA")){
+        cout << "Enter name" << endl;
+        cin >> name; 
+        cout << "Enter sector" << endl;
+        cin >> sector;
+    }
 }
 
 void menuDisplayHistory(StockManager<Stock>& stockManager, StockManager<ETF>& etfManager) {

@@ -18,11 +18,11 @@ WEEK 2
 
 WEEK 3
 -------
-[ ] TradingStrategy.cpp
-[ ] FixedSIPStrategy.cpp
-[ ] DynamicSIPStrategy.cpp
-[ ] GoldenCrossStrategy.cpp
-[ ] MomentumStrategy.cpp
+[X] TradingStrategy.cpp
+[X] FixedSIPStrategy.cpp
+[X] DynamicSIPStrategy.cpp
+[X] GoldenCrossStrategy.cpp
+[X] MomentumStrategy.cpp
 [ ] main.cpp
 
 REPORT

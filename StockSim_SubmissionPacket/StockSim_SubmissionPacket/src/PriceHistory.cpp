@@ -43,7 +43,7 @@ void PriceHistory::printRange(const string& startDate, const string& endDate) co
     PriceNode* current = head;
     while (current) {
         if (CSVParser::dateInRange(current->date, startDate, endDate)) {
-            cout << current->date << ": " << current->open << ": " << current->high << ": " << current->low << ": " << current->close << ": " << current->volume << ": " << endl;
+            cout << current->date << ": " << current->open << ": " << current->high << ": " << current->low << ": " << current->close << ": " << current->volume << endl;
         }
         if (current->date > endDate) break;
         current = current->next;

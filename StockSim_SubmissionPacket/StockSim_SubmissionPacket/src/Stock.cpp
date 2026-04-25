@@ -61,8 +61,8 @@ double Stock::calculateAnnualReturn(int year) const{
     if(history == nullptr){
         return 0.0;
     }
-    float start = getYearStartPrice(year);
-    float end = getYearEndPrice(year);
+    double start = getYearStartPrice(year);
+    double end = getYearEndPrice(year);
     if(start == -1.0 || end == -1.0){
         return 0.0;
     }
