@@ -38,12 +38,15 @@ private:
     double mildDipThreshold;     // % drop from 12-month high for mild dip  (e.g. 5.0)
     double severeDipThreshold;   // % drop from 12-month high for severe dip (e.g. 15.0)
     double mildMultiplier;       // investment multiplier on mild dip (e.g. 2.0)
-    int    lookbackDays;         // days for rolling high calculation (e.g. 252 = 1 year)
+    int    lookbackDays;         // days for rolling high/low calculation (e.g. 252 = 1 year)
+    double rallyThreshold;       // % rise from lookback low that triggers rally mode (e.g. 20.0)
+    double rallyMultiplier;      // fraction of monthlyCapital to invest during a rally (e.g. 0.1)
 
 public:
     DynamicSIPStrategy(int shortWindow, int longWindow,
                        double mildDipThreshold, double severeDipThreshold,
-                       double mildMultiplier, int lookbackDays);
+                       double mildMultiplier, int lookbackDays,
+                       double rallyThreshold = 0.0, double rallyMultiplier = 1.0);
 
     SimResult backtest(PriceHistory* history,
                        double monthlyCapital,

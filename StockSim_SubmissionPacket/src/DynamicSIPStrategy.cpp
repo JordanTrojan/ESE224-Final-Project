@@ -1,15 +1,18 @@
 #include "DynamicSIPStrategy.h"
 #include "CSVParser.h"
 #include <vector>
+#include <deque>   // sliding window max: O(1)/day vs O(lookbackDays)/day with ReverseIterator
 using namespace std;
 
-DynamicSIPStrategy::DynamicSIPStrategy(int shortWindow, int longWindow, double mildDipThreshold, double severeDipThreshold, double mildMultiplier, int lookbackDays) {
+DynamicSIPStrategy::DynamicSIPStrategy(int shortWindow, int longWindow, double mildDipThreshold, double severeDipThreshold, double mildMultiplier, int lookbackDays, double rallyThreshold, double rallyMultiplier) {
     this->shortWindow        = shortWindow;
     this->longWindow         = longWindow;
     this->mildDipThreshold   = mildDipThreshold;
     this->severeDipThreshold = severeDipThreshold;
     this->mildMultiplier     = mildMultiplier;
     this->lookbackDays       = lookbackDays;
+    this->rallyThreshold     = rallyThreshold;
+    this->rallyMultiplier    = rallyMultiplier;
 }
 
 SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapital,
@@ -38,6 +41,13 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
     double fractionalShares = 0.0;
     double cash             = 0.0;
     vector<double> portfolioValues;
+    portfolioValues.reserve(history->getSize());
+
+    // Sliding window max (monotonically decreasing) and min (monotonically increasing).
+    // Both O(1) per day — front of each deque is the rolling high/low.
+    deque<pair<double,int>> winMax;
+    deque<pair<double,int>> winMin;
+    int dayIdx = 0;
 
     int    lastMonth = -1, lastYear = -1;
     double lastClose = 0.0;
@@ -50,6 +60,21 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
 
         shortMA.enqueue(node.close);
         longMA.enqueue(node.close);
+
+        // Maintain sliding window max/min (runs every day including pre-startYear warmup)
+        while (!winMax.empty() && winMax.front().second < dayIdx - lookbackDays)
+            winMax.pop_front();
+        while (!winMax.empty() && winMax.back().first <= node.close)
+            winMax.pop_back();
+        winMax.push_back({node.close, dayIdx});
+
+        while (!winMin.empty() && winMin.front().second < dayIdx - lookbackDays)
+            winMin.pop_front();
+        while (!winMin.empty() && winMin.back().first >= node.close)
+            winMin.pop_back();
+        winMin.push_back({node.close, dayIdx});
+
+        dayIdx++;
 
         if (y < startYear) { lastMonth = m; lastYear = y; continue; }
         if (y > endYear)   break;
@@ -89,18 +114,13 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
 
             // Dip detection — runs every day regardless of market status
             if (cash > 0.0) {
-                double high12 = node.close;
-                PriceHistory::ReverseIterator rit(&(*it));
-                int steps = 0;
-                while (steps < lookbackDays && rit != history->rend()) {
-                    ++rit; ++steps;
-                    if (!(rit != history->rend())) break;
-                    double c = (*rit).close;
-                    if (c > high12) high12 = c;
-                }
+                double high12  = winMax.front().first; // O(1) sliding window max
+                double low12   = winMin.front().first; // O(1) sliding window min
 
                 double dropFromHigh = (high12 > 0.0)
                     ? (high12 - node.close) / high12 * 100.0 : 0.0;
+                double riseFromLow  = (low12  > 0.0)
+                    ? (node.close - low12)  / low12  * 100.0 : 0.0;
 
                 double toInvest = 0.0;
                 if (dropFromHigh >= severeDipThreshold) {
@@ -113,8 +133,11 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
                     } else if (dropFromHigh >= mildDipThreshold) {
                         // mild dip — amplified buy
                         toInvest = mildMultiplier * monthlyCapital;
+                    } else if (rallyThreshold > 0.0 && riseFromLow >= rallyThreshold) {
+                        // rally mode — price has surged from lookback low, invest less
+                        toInvest = rallyMultiplier * monthlyCapital;
                     } else {
-                        // no dip — invest monthly as baseline
+                        // no dip, no rally — invest monthly as baseline
                         toInvest = monthlyCapital;
                     }
                 }

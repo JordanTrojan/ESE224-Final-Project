@@ -18,12 +18,17 @@
  *   g++ -std=c++11 -Iinclude src/*.cpp main.cpp -o stocksim
  */
 //g++ -std=c++11 -Iinclude src/PriceHistory.cpp src/FinancialAsset.cpp src/CSVParser.cpp src/Stock.cpp src/ETF.cpp src/CircularQueue.cpp src/TradeStack.cpp src/OrderQueue.cpp src/StockBST.cpp src/Portfolio.cpp src/TradingStrategy.cpp src/FixedSIPStrategy.cpp src/DynamicSIPStrategy.cpp src/GoldenCrossStrategy.cpp src/MomentumStrategy.cpp main.cpp -o stocksim
-
+//g++ -O3 -std=c++17 -o stocksim_sweep.exe main.cpp src/*.cpp -Iinclude
 #include <iostream>
 #include <string>
 #include <limits>
 #include <iomanip>
 #include <vector>
+// ===== REMOVE HERE (CSV sweep additions) =====
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+// ===== END REMOVE HERE =====
 
 // Include all your headers here once implemented
 #include "include/FinancialAsset.h"
@@ -67,6 +72,9 @@ void menuTradeHistory(Portfolio& portfolio);
 
 // Bonus
 void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear, StockBST& bst);
+// ===== REMOVE HERE (CSV sweep additions) =====
+void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYear);
+// ===== END REMOVE HERE =====
 
 // ---------------------------------------------------------------
 // Utility: print the main menu
@@ -91,6 +99,7 @@ void printMenu(const string& studentName, const string& studentID) {
     cout << "[14]  Display portfolio summary\n";
     cout << "[15]  Display full trade history\n";
     cout << "[16]  Bonus: Parameter sweep\n";
+    cout << "[17]  Bonus: Parameter sweep - CSV top 100\n";
     cout << " [0]  Exit\n";
     cout << "-------------------------------------------------\n";
     cout << "Enter choice: ";
@@ -151,8 +160,20 @@ int main() {
                 parameterSweep(spx, monthlyCapital, startYear, endYear, sweepBST);
                 break;
             }
+            // ===== REMOVE HERE (CSV sweep additions) =====
+            case 17: {
+                ETF* spx = etfManager.findByTicker("SPX");
+                if (!spx) { cout << "SPX not loaded. Load it first." << endl; break; }
+                double monthlyCapital; int startYear, endYear;
+                cout << "Monthly capital: "; cin >> monthlyCapital;
+                cout << "Start year: ";      cin >> startYear;
+                cout << "End year: ";        cin >> endYear;
+                parameterSweepCSV(spx, monthlyCapital, startYear, endYear);
+                break;
+            }
+            // ===== END REMOVE HERE =====
             case  0: cout << "Goodbye, " << studentName << "!\n";                  break;
-            default: cout << "Invalid choice. Please enter 0–16.\n";               break;
+            default: cout << "Invalid choice. Please enter 0–17.\n";               break;
         }
     }
 
@@ -390,7 +411,7 @@ void menuCompareStrategies(StockManager<ETF>& etfManager) {
 
     TradingStrategy* strategies[4];
     strategies[0] = new FixedSIPStrategy();
-    strategies[1] = new DynamicSIPStrategy(25, 250, 3.5, 10.0, 0.5, 126);
+    strategies[1] = new DynamicSIPStrategy(24, 234, 2.7, 18.75, 0.1, 63);
     strategies[2] = new GoldenCrossStrategy(50, 200);
     strategies[3] = new MomentumStrategy(5.0, 126);
 
@@ -451,29 +472,32 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
     // vector<double> multipliers  = { 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 };
     // vector<int>    lookbacks    = { 126, 252, 504 };
 
-    // Half-day sweep — ~5.76M combinations (~12 hours estimated):
-    vector<int>    shortWindows = { 8, 10, 14, 18, 20, 22, 25, 28, 30, 33, 36, 40 };
-    vector<int>    longWindows  = { 125, 150, 175, 200, 215, 225, 235, 245, 250, 260, 275, 300 };
-    vector<double> mildDips     = { 1.0, 2.0, 2.5, 3.0, 3.25, 3.5, 3.75, 4.0, 5.0, 6.0 };
-    vector<double> severeDips   = { 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 15.0, 18.0, 20.0 };
-    vector<double> multipliers  = { 0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
-    vector<int>    lookbacks    = { 42, 63, 90, 126, 175 };
+    vector<int>    shortWindows     = { 22, 23, 24, 25, 26};
+    vector<int>    longWindows      = { 225, 229, 230, 231, 233, 234, 235, 236, 237};
+    vector<double> mildDips         = { 2.6, 2.65, 2.7, 2.75, 2.8, 2.85, 2.9};
+    vector<double> severeDips       = { 16, 16.5, 17, 17.25, 17.5, 17.75, 18, 18.25, 18.5, 18.75, 19 };
+    vector<double> multipliers      = { 0.05, .075, 0.1, .125, 0.25 };
+    vector<int>    lookbacks        = { 42, 50, 55, 57, 60, 63, 65, 70};
+    vector<double> rallyThresholds  = { 0.0, 15.0, 20.0, 25.0 };
+    vector<double> rallyMultipliers = { 0.1, 0.5 };
 
     // ================================================================
 
-    int nSW = (int)shortWindows.size(), nLW = (int)longWindows.size();
-    int nMD = (int)mildDips.size(),     nSD = (int)severeDips.size();
-    int nMU = (int)multipliers.size(),  nLB = (int)lookbacks.size();
+    int nSW = (int)shortWindows.size(),     nLW = (int)longWindows.size();
+    int nMD = (int)mildDips.size(),         nSD = (int)severeDips.size();
+    int nMU = (int)multipliers.size(),      nLB = (int)lookbacks.size();
+    int nRT = (int)rallyThresholds.size(),  nRM = (int)rallyMultipliers.size();
 
-    int total = 0;
+    long long total = 0;
     for (int a=0;a<nSW;a++) for (int b=0;b<nLW;b++) for (int i=0;i<nMD;i++)
         for (int j=0;j<nSD;j++) for (int k=0;k<nMU;k++) for (int L=0;L<nLB;L++)
-            if (shortWindows[a] < longWindows[b] && mildDips[i] < severeDips[j]) total++;
+            for (int ri=0;ri<nRT;ri++) for (int rmi=0;rmi<nRM;rmi++)
+                if (shortWindows[a] < longWindows[b] && mildDips[i] < severeDips[j]) total++;
 
     cout << "Running parameter sweep (" << total << " combinations)..." << endl;
     cout << "["; for (int i=0;i<50;i++) cout<<" "; cout<<"] 0%" << flush;
 
-    int    current   = 0;
+    long long current   = 0;
     double bestValue = -1.0;
     string bestParams;
 
@@ -485,36 +509,45 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
                     if (mildDips[i] >= severeDips[j]) continue;
                     for (int k=0;k<nMU;k++) {
                         for (int L=0;L<nLB;L++) {
-                            int    sw     = shortWindows[a];
-                            int    lw     = longWindows[b];
-                            double mild   = mildDips[i];
-                            double severe = severeDips[j];
-                            double mult   = multipliers[k];
-                            int    lb     = lookbacks[L];
+                            for (int ri=0;ri<nRT;ri++) {
+                                for (int rmi=0;rmi<nRM;rmi++) {
+                                    int    sw   = shortWindows[a];
+                                    int    lw   = longWindows[b];
+                                    double mild = mildDips[i];
+                                    double severe = severeDips[j];
+                                    double mult = multipliers[k];
+                                    int    lb   = lookbacks[L];
+                                    double rt   = rallyThresholds[ri];
+                                    double rmt  = rallyMultipliers[rmi];
 
-                            DynamicSIPStrategy strat(sw, lw, mild, severe, mult, lb);
-                            SimResult r = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
+                                    DynamicSIPStrategy strat(sw, lw, mild, severe, mult, lb, rt, rmt);
+                                    SimResult res = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
 
-                            string ticker = "sw=" + to_string(sw) + "_lw=" + to_string(lw) +
-                                            "_m=" + to_string((int)mild) + "_s=" + to_string((int)severe) +
-                                            "_x=" + to_string((int)(mult*100)) + "_lb=" + to_string(lb);
-                            bst.insert(ticker, r.finalValue, 0);
+                                    string ticker = "sw=" + to_string(sw) + "_lw=" + to_string(lw) +
+                                                    "_m=" + to_string(mild) + "_s=" + to_string(severe) +
+                                                    "_x=" + to_string(mult) + "_lb=" + to_string(lb) +
+                                                    "_rt=" + to_string(rt) + "_rm=" + to_string(rmt);
+                                    bst.insert(ticker, res.finalValue, 0);
 
-                            if (r.finalValue > bestValue) {
-                                bestValue  = r.finalValue;
-                                bestParams = "sw=" + to_string(sw) + " lw=" + to_string(lw) +
-                                             " mild=" + to_string(mild) + "%" +
-                                             " severe=" + to_string(severe) + "%" +
-                                             " mult=" + to_string(mult) +
-                                             " lookback=" + to_string(lb);
+                                    if (res.finalValue > bestValue) {
+                                        bestValue  = res.finalValue;
+                                        bestParams = "sw=" + to_string(sw) + " lw=" + to_string(lw) +
+                                                     " mild=" + to_string(mild) + "%" +
+                                                     " severe=" + to_string(severe) + "%" +
+                                                     " mult=" + to_string(mult) +
+                                                     " lookback=" + to_string(lb) +
+                                                     " rallyThr=" + to_string(rt) +
+                                                     " rallyMult=" + to_string(rmt);
+                                    }
+
+                                    current++;
+                                    int filled = (int)(50.0 * current / total);
+                                    int pct    = (int)(100.0 * current / total);
+                                    cout << "\r[";
+                                    for (int box=0;box<50;box++) cout << (box < filled ? "=" : " ");
+                                    cout << "] " << pct << "%  (" << current << "/" << total << ")" << flush;
+                                }
                             }
-
-                            current++;
-                            int filled = (int)(50.0 * current / total);
-                            int pct    = (int)(100.0 * current / total);
-                            cout << "\r[";
-                            for (int box=0;box<50;box++) cout << (box < filled ? "=" : " ");
-                            cout << "] " << pct << "%  (" << current << "/" << total << ")" << flush;
                         }
                     }
                 }
@@ -524,6 +557,140 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
 
     // cout << "\n\nRanked worst to best (BST inorder):" << endl;
     // bst.inorder();
+    StockBST::BSTNode* maxNode = bst.findMax();
+    if (maxNode)
+        cout << "\n\nBST max: " << maxNode->ticker << " ($" << fixed << setprecision(2) << maxNode->key << ")\n";
     cout << "\nOptimal parameters: " << bestParams << endl;
     cout << "Best final value  : $" << fixed << setprecision(2) << bestValue << endl;
 }
+
+// ===== REMOVE HERE (CSV sweep additions) =====
+void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYear) {
+
+    // Wide-range sweep for multi-peak detection.
+    // All SW (max=100) < all LW (min=110), all mild (max=12) < all severe (min=13) — zero filtering.
+    // 18 x 18 x 15 x 15 x 8 x 7 x 4 x 2 = ~163M combinations (~2 days estimated).
+
+    // Previous fine-grained sweep (known-optimal neighbourhood — uncomment to re-run):
+    /*
+    vector<int>    shortWindows     = { 22, 23, 24, 25, 26};
+    vector<int>    longWindows      = { 225, 229, 230, 231, 233, 234, 235, 236, 237};
+    vector<double> mildDips         = { 2.6, 2.65, 2.7, 2.75, 2.8, 2.85, 2.9};
+    vector<double> severeDips       = { 16, 16.5, 17, 17.25, 17.5, 17.75, 18, 18.25, 18.5, 18.75, 19 };
+    vector<double> multipliers      = { 0.05, .075, 0.1, .125, 0.25 };
+    vector<int>    lookbacks        = { 42, 50, 55, 57, 60, 63, 65, 70};
+    vector<double> rallyThresholds  = { 0.0, 15.0, 20.0, 25.0 };
+    vector<double> rallyMultipliers = { 0.1, 0.5 };
+    */
+
+    vector<int>    shortWindows     = { 5, 8, 10, 12, 15, 18, 20, 22, 24, 25, 28, 30, 35, 40, 50, 60, 75, 100 };
+    vector<int>    longWindows      = { 110, 125, 150, 175, 200, 215, 225, 235, 250, 275, 300, 325, 350, 400, 450, 500, 600, 750 };
+    vector<double> mildDips         = { 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0 };
+    vector<double> severeDips       = { 13.0, 15.0, 17.0, 18.0, 20.0, 22.0, 25.0, 28.0, 30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 70.0 };
+    vector<double> multipliers      = { 0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0 };
+    vector<int>    lookbacks        = { 21, 42, 63, 90, 126, 175, 252 };
+    vector<double> rallyThresholds  = { 0.0, 10.0, 20.0, 30.0 };
+    vector<double> rallyMultipliers = { 0.1, 0.5 };
+
+
+    int nSW = (int)shortWindows.size(),     nLW = (int)longWindows.size();
+    int nMD = (int)mildDips.size(),         nSD = (int)severeDips.size();
+    int nMU = (int)multipliers.size(),      nLB = (int)lookbacks.size();
+    int nRT = (int)rallyThresholds.size(),  nRM = (int)rallyMultipliers.size();
+
+    long long total = (long long)nSW * nLW * nMD * nSD * nMU * nLB * nRT * nRM;
+    cout << "Running CSV sweep (" << total << " combinations)..." << endl;
+    cout << "["; for (int i=0;i<50;i++) cout<<" "; cout<<"] 0%" << flush;
+
+    long long current  = 0;
+    double    bestValue = -1.0;
+    string    bestParams;
+    int       updateStep = (int)(total / 200);  // update bar every 0.5%
+    if (updateStep < 1) updateStep = 1;
+
+    // Top-1000 tracking: {finalValue, csvRow}
+    vector<pair<double,string>> top100;
+    top100.reserve(1001);
+
+    for (int a=0;a<nSW;a++) {
+        for (int b=0;b<nLW;b++) {
+            for (int i=0;i<nMD;i++) {
+                for (int j=0;j<nSD;j++) {
+                    for (int k=0;k<nMU;k++) {
+                        for (int L=0;L<nLB;L++) {
+                            for (int ri=0;ri<nRT;ri++) {
+                                for (int rmi=0;rmi<nRM;rmi++) {
+                                    int    sw   = shortWindows[a];
+                                    int    lw   = longWindows[b];
+                                    double mild = mildDips[i];
+                                    double severe = severeDips[j];
+                                    double mult = multipliers[k];
+                                    int    lb   = lookbacks[L];
+                                    double rt   = rallyThresholds[ri];
+                                    double rmt  = rallyMultipliers[rmi];
+
+                                    DynamicSIPStrategy strat(sw, lw, mild, severe, mult, lb, rt, rmt);
+                                    SimResult res = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
+
+                                    if (res.finalValue > bestValue) {
+                                        bestValue  = res.finalValue;
+                                        bestParams = "sw=" + to_string(sw) + " lw=" + to_string(lw) +
+                                                     " mild=" + to_string(mild) + "%" +
+                                                     " severe=" + to_string(severe) + "%" +
+                                                     " mult=" + to_string(mult) +
+                                                     " lookback=" + to_string(lb) +
+                                                     " rallyThr=" + to_string(rt) +
+                                                     " rallyMult=" + to_string(rmt);
+                                    }
+
+                                    // Build CSV row and update top 100
+                                    ostringstream row;
+                                    row << fixed << setprecision(4)
+                                        << sw << "," << lw << "," << mild << "," << severe << ","
+                                        << mult << "," << lb << "," << rt << "," << rmt << ","
+                                        << res.finalValue << "," << res.totalReturn << ","
+                                        << res.cagr << "," << res.maxDrawdown << "," << res.totalTrades;
+                                    string csvRow = row.str();
+
+                                    if ((int)top100.size() < 1000) {
+                                        top100.push_back({res.finalValue, csvRow});
+                                    } else {
+                                        int worstIdx = 0;
+                                        for (int x = 1; x < 1000; x++)
+                                            if (top100[x].first < top100[worstIdx].first) worstIdx = x;
+                                        if (res.finalValue > top100[worstIdx].first)
+                                            top100[worstIdx] = {res.finalValue, csvRow};
+                                    }
+
+                                    current++;
+                                    if (current % updateStep == 0 || current == total) {
+                                        int filled = (int)(50.0 * current / total);
+                                        int pct    = (int)(100.0 * current / total);
+                                        cout << "\r[";
+                                        for (int box=0;box<50;box++) cout << (box < filled ? "=" : " ");
+                                        cout << "] " << pct << "%  (" << current << "/" << total << ")" << flush;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort top 100 descending and write CSV
+    sort(top100.begin(), top100.end(),
+         [](const pair<double,string>& a, const pair<double,string>& b){ return a.first > b.first; });
+
+    ofstream csv("sweep_top100.csv");
+    csv << "Rank,SW,LW,MildDip,SevereDip,Mult,Lookback,RallyThreshold,RallyMultiplier,FinalValue,TotalReturn,CAGR,MaxDrawdown,TotalTrades\n";
+    for (int i = 0; i < (int)top100.size(); i++)
+        csv << (i+1) << "," << top100[i].second << "\n";
+    csv.close();
+
+    cout << "\n\nTop " << top100.size() << " results written to sweep_top100.csv\n";
+    cout << "Optimal parameters: " << bestParams << "\n";
+    cout << "Best final value  : $" << fixed << setprecision(2) << bestValue << "\n";
+}
+// ===== END REMOVE HERE =====
