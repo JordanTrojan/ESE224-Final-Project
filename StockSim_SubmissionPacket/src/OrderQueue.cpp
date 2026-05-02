@@ -48,6 +48,9 @@ Order OrderQueue::dequeue() {
 // Return the front order without removing it.
 // Precondition: !isEmpty()
 Order OrderQueue::peek() const {
+    if(isEmpty()){
+        return Order();
+    }
     return front->data;
 }
 

@@ -16,7 +16,7 @@ PriceHistory::~PriceHistory() {
 
 // Appends a new PriceNode to the tail (most-recent end)
 void PriceHistory::append(const string& date, double open, double high,
-                          double low, double close, long volume) {
+                          double low, double close, long long volume) {
     PriceNode* newNode = new PriceNode(date, open, high, low, close, volume); // Assuming close is the price
     if (!head) {
         head = tail = newNode;

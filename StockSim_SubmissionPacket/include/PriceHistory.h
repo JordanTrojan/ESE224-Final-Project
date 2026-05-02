@@ -21,7 +21,7 @@ public:
 
     // Appends a new PriceNode to the tail (most-recent end)
     void append(const string& date, double open, double high,
-                double low, double close, long volume);
+                double low, double close, long long volume);
 
     // Linear search from head to tail — returns nullptr if not found
     PriceNode* findByDate(const string& date) const;

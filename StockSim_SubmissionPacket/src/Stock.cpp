@@ -25,8 +25,9 @@ double Stock::getPriceOnDate(const string& date) const{
     if (history == nullptr) {
         return -1.0;
     }
-    if(history->findByDate(date) != nullptr){
-       return history->findByDate(date)->close;
+    PriceNode* node = history->findByDate(date);
+    if(node != nullptr){
+        return node->close;
     }else{
         return -1.0;
     }

@@ -145,20 +145,22 @@ void Portfolio::queueOrder(const Order& order) {
 }
 
 
-void Portfolio::executeNextOrder(double currentPrice, const string& date) { 
+void Portfolio::executeNextOrder(double currentPrice, const string& date) {
     if(pendingOrders.isEmpty()){
         return;
     }
-    Order top = pendingOrders.peek(); 
+    Order top = pendingOrders.peek();
     if(top.type == "LIMIT" && top.side == "SELL"){
         if(currentPrice >= top.targetPrice){
             sellShares(top.ticker, top.shares,currentPrice,date);
+            pendingOrders.dequeue();
         }else{
             cout << "Order Skipped" << endl;
         }
     }else if(top.type == "LIMIT" && top.side == "BUY"){
         if(currentPrice <= top.targetPrice){
             buyShares(top.ticker, top.shares,currentPrice,date);
+            pendingOrders.dequeue();
         }else{
             cout << "Order Skipped" << endl;
         }
@@ -168,8 +170,8 @@ void Portfolio::executeNextOrder(double currentPrice, const string& date) {
         }else if(top.side == "SELL"){
             sellShares(top.ticker, top.shares, currentPrice, date);
         }
-    }
         pendingOrders.dequeue();
+    }
 }
 
 

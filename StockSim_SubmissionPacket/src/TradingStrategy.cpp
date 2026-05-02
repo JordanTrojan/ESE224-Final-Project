@@ -5,7 +5,7 @@ void TradingStrategy::printResult(const SimResult& result) const {
     cout << "Final Value: " << result.finalValue << endl;
     cout << "Total Invested: " << result.totalInvested << endl;
     cout << "Total return (percentage): " << result.totalReturn << endl;
-    cout << "Coumpound Annual Growth Rate: " << result.cagr << endl;
+    cout << "Compound Annual Growth Rate: " << result.cagr << endl;
     cout << "Worst peak-to-trough drop: " << result.maxDrawdown << endl;
     cout << "Total Trades: " << result.totalTrades << endl;
 }
@@ -28,7 +28,7 @@ double TradingStrategy::calculateMaxDrawdown(const vector<double>& portfolioValu
         if(portfolioValues.at(i) > peak){
             peak = portfolioValues.at(i);
         }else{
-            double drawdown = (peak - portfolioValues.at(i)) / (peak) * 100;
+            double drawdown = (peak > 0.0) ? (peak - portfolioValues.at(i)) / peak * 100 : 0.0;
             if(drawdown > maxDrawdown){
                 maxDrawdown = drawdown;
             }

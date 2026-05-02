@@ -14,12 +14,12 @@ struct PriceNode {
     double high;
     double low;
     double close;
-    long   volume;
+    long long volume;
     PriceNode* next;  // toward more recent dates (chronological forward)
     PriceNode* prev;  // toward older dates (chronological backward)
 
     PriceNode(const string& date, double open, double high,
-              double low, double close, long volume)
+              double low, double close, long long volume)
         : date(date), open(open), high(high), low(low),
           close(close), volume(volume), next(nullptr), prev(nullptr) {}
 };

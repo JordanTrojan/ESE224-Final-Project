@@ -17,6 +17,7 @@
  * Compile with C++11 or later:
  *   g++ -std=c++11 -Iinclude src/*.cpp main.cpp -o stocksim
  */
+//g++ -std=c++11 -Iinclude src/PriceHistory.cpp src/FinancialAsset.cpp src/CSVParser.cpp src/Stock.cpp src/ETF.cpp src/CircularQueue.cpp src/TradeStack.cpp src/OrderQueue.cpp src/StockBST.cpp src/Portfolio.cpp src/TradingStrategy.cpp src/FixedSIPStrategy.cpp src/DynamicSIPStrategy.cpp src/GoldenCrossStrategy.cpp src/MomentumStrategy.cpp main.cpp -o stocksim
 
 #include <iostream>
 #include <string>
@@ -102,7 +103,7 @@ int main() {
     // --- Student login ---
     string studentName, studentID;
     cout << "========================================\n";
-    cout << "  ESE 224 StockSim — Student Login\n";
+    cout << "  ESE 224 StockSim - Student Login\n";
     cout << "========================================\n";
     cout << "Enter your full name: ";
     getline(cin, studentName);
@@ -151,7 +152,7 @@ int main() {
                 break;
             }
             case  0: cout << "Goodbye, " << studentName << "!\n";                  break;
-            default: cout << "Invalid choice. Please enter 0–15.\n";               break;
+            default: cout << "Invalid choice. Please enter 0–16.\n";               break;
         }
     }
 
@@ -359,7 +360,7 @@ void menuRunStrategy(StockManager<ETF>& etfManager, StockManager<Stock>& stockMa
     if (choice == 1) {
         strategy = new FixedSIPStrategy();
     } else if (choice == 2) {
-        strategy = new DynamicSIPStrategy(50, 200, 5.0, 15.0, 2.0, 252);
+        strategy = new DynamicSIPStrategy(25, 250, 3.5, 10.0, 0.5, 126);
     } else if (choice == 3) {
         strategy = new GoldenCrossStrategy(50, 200);
     } else if (choice == 4) {
@@ -389,7 +390,7 @@ void menuCompareStrategies(StockManager<ETF>& etfManager) {
 
     TradingStrategy* strategies[4];
     strategies[0] = new FixedSIPStrategy();
-    strategies[1] = new DynamicSIPStrategy(50, 200, 5.0, 15.0, 2.0, 252);
+    strategies[1] = new DynamicSIPStrategy(25, 250, 3.5, 10.0, 0.5, 126);
     strategies[2] = new GoldenCrossStrategy(50, 200);
     strategies[3] = new MomentumStrategy(5.0, 126);
 
@@ -435,72 +436,94 @@ void menuTradeHistory(Portfolio& portfolio) {
 // BONUS: Parameter Sweep for DynamicSIPStrategy
 // ---------------------------------------------------------------
 void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear, StockBST& bst) {
-    double mildDips[15] = {3,4,5,6,7,8,9,10,11,12,13,14,15,16,17};
-    double severeDips[15]  = {10,11,12,13,14,15,17,19,21,23,25,27,29,31,35};
-    double multipliers[15] = {1.0,1.25,1.5,1.75,2.0,2.25,2.5,2.75,3.0,3.25,3.5,3.75,4.0,4.25,4.5};
+
+    // ================================================================
+    // EDIT THESE ARRAYS to control what values are tested.
+    // Add or remove values freely — the loop counts adjust automatically.
+    // Rule: every mildDip must be < severeDip, shortWindow < longWindow.
+    // ================================================================
+
+    // Original broad sweep:
+    // vector<int>    shortWindows = { 15, 20, 25, 30, 35, 50, 100, 150 };
+    // vector<int>    longWindows  = { 150, 200, 250, 275, 300, 325, 350 };
+    // vector<double> mildDips     = { 2, 3, 3.5, 3.75, 4, 5, 6, 7, 8, 9, 10, 12 };
+    // vector<double> severeDips   = { 8, 10, 12, 15, 20, 25, 30 };
+    // vector<double> multipliers  = { 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 };
+    // vector<int>    lookbacks    = { 126, 252, 504 };
+
+    // Half-day sweep — ~5.76M combinations (~12 hours estimated):
+    vector<int>    shortWindows = { 8, 10, 14, 18, 20, 22, 25, 28, 30, 33, 36, 40 };
+    vector<int>    longWindows  = { 125, 150, 175, 200, 215, 225, 235, 245, 250, 260, 275, 300 };
+    vector<double> mildDips     = { 1.0, 2.0, 2.5, 3.0, 3.25, 3.5, 3.75, 4.0, 5.0, 6.0 };
+    vector<double> severeDips   = { 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 15.0, 18.0, 20.0 };
+    vector<double> multipliers  = { 0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+    vector<int>    lookbacks    = { 42, 63, 90, 126, 175 };
+
+    // ================================================================
+
+    int nSW = (int)shortWindows.size(), nLW = (int)longWindows.size();
+    int nMD = (int)mildDips.size(),     nSD = (int)severeDips.size();
+    int nMU = (int)multipliers.size(),  nLB = (int)lookbacks.size();
 
     int total = 0;
-    int current = 0;
+    for (int a=0;a<nSW;a++) for (int b=0;b<nLW;b++) for (int i=0;i<nMD;i++)
+        for (int j=0;j<nSD;j++) for (int k=0;k<nMU;k++) for (int L=0;L<nLB;L++)
+            if (shortWindows[a] < longWindows[b] && mildDips[i] < severeDips[j]) total++;
 
-    //count valid combinitions first
- for (int i =0; i<15; i++) {
-        for (int j = 0; j<15; j++) {
-            for (int k =0;  k<15; k++) {
-                if (mildDips[i] < severeDips[j]) {
-                    total++;
-                }
-            }
-        }
-    }
+    cout << "Running parameter sweep (" << total << " combinations)..." << endl;
+    cout << "["; for (int i=0;i<50;i++) cout<<" "; cout<<"] 0%" << flush;
 
-    cout << "Running parameter sweep (" << total << "combinations)..." << endl;
-    cout << "[";
-    for (int i =0; i <50; i++) {
-        cout << " ";
-    }
-    cout << "] 0%" << flush;
-
-
-
+    int    current   = 0;
     double bestValue = -1.0;
-    string bestParams = "";
+    string bestParams;
 
+    for (int a=0;a<nSW;a++) {
+        for (int b=0;b<nLW;b++) {
+            if (shortWindows[a] >= longWindows[b]) continue;
+            for (int i=0;i<nMD;i++) {
+                for (int j=0;j<nSD;j++) {
+                    if (mildDips[i] >= severeDips[j]) continue;
+                    for (int k=0;k<nMU;k++) {
+                        for (int L=0;L<nLB;L++) {
+                            int    sw     = shortWindows[a];
+                            int    lw     = longWindows[b];
+                            double mild   = mildDips[i];
+                            double severe = severeDips[j];
+                            double mult   = multipliers[k];
+                            int    lb     = lookbacks[L];
 
-  for (int i =0; i<15; i++) {
-        for (int j = 0; j<15; j++) {
-            for (int k =0;  k<15; k++) { 
-                double mild = mildDips[i];
-                double severe = severeDips[j];
-                double mult = multipliers[k];
+                            DynamicSIPStrategy strat(sw, lw, mild, severe, mult, lb);
+                            SimResult r = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
 
-                if (mild >= severe) continue; //filter extraneous sweeps
+                            string ticker = "sw=" + to_string(sw) + "_lw=" + to_string(lw) +
+                                            "_m=" + to_string((int)mild) + "_s=" + to_string((int)severe) +
+                                            "_x=" + to_string((int)(mult*100)) + "_lb=" + to_string(lb);
+                            bst.insert(ticker, r.finalValue, 0);
 
-                DynamicSIPStrategy strat(50, 200, mild, severe, mult, 252);
-                SimResult r = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
+                            if (r.finalValue > bestValue) {
+                                bestValue  = r.finalValue;
+                                bestParams = "sw=" + to_string(sw) + " lw=" + to_string(lw) +
+                                             " mild=" + to_string(mild) + "%" +
+                                             " severe=" + to_string(severe) + "%" +
+                                             " mult=" + to_string(mult) +
+                                             " lookback=" + to_string(lb);
+                            }
 
-                string ticker = "m=" + to_string((int)mild) + "_s=" + to_string((int)severe) + "_x=" + to_string((int)(mult*100));
-                bst.insert(ticker, r.finalValue,0);
-
-                if (r.finalValue > bestValue) {
-                    bestValue = r.finalValue;
-                    bestParams = "mild=" + to_string((int)mild) + "% severe=" + to_string((int)severe) + "% mult=" + to_string(mult);
+                            current++;
+                            int filled = (int)(50.0 * current / total);
+                            int pct    = (int)(100.0 * current / total);
+                            cout << "\r[";
+                            for (int box=0;box<50;box++) cout << (box < filled ? "=" : " ");
+                            cout << "] " << pct << "%  (" << current << "/" << total << ")" << flush;
+                        }
+                    }
                 }
-
-                //update loading bar
-                current++;
-                int filled = (int)(50.0 * current / total);
-                int pct    = (int)(100.0 * current / total);
-                cout << "\r[";
-                for (int b =0; b<50; b++) {
-                    cout << (b<filled? "=" : " ");
-                }
-                cout << "]" << pct << "%  (" << current << "/" << total << ")" << flush;
             }
         }
     }
-    cout << "\n\nRanked worst to best (BST inorder):" << endl;
-    bst.inorder();
+
+    // cout << "\n\nRanked worst to best (BST inorder):" << endl;
+    // bst.inorder();
     cout << "\nOptimal parameters: " << bestParams << endl;
     cout << "Best final value  : $" << fixed << setprecision(2) << bestValue << endl;
-
 }

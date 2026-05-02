@@ -12,7 +12,8 @@ DynamicSIPStrategy::DynamicSIPStrategy(int shortWindow, int longWindow, double m
     this->lookbackDays       = lookbackDays;
 }
 
-SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapital, int startYear, int endYear) {
+SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapital,
+                                        int startYear, int endYear) {
     SimResult result;
     result.strategyName  = getName();
     result.finalValue    = 0.0;
@@ -29,9 +30,10 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
 
     double prev_short = 0.0, prev_long = 0.0;
     double curr_short = 0.0, curr_long = 0.0;
-    bool   prevValues       = false;
-    bool   inMarket         = false;
-    bool   newCashAvailable = false;
+    bool   prevValues = false;
+    bool   inMarket   = false;
+
+    double moderateDipThreshold = (mildDipThreshold + severeDipThreshold) / 2.0;
 
     double fractionalShares = 0.0;
     double cash             = 0.0;
@@ -46,18 +48,16 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
         int y = CSVParser::extractYear(node.date);
         int m = CSVParser::extractMonth(node.date);
 
-        // always feed MAs for warmup even before startYear
         shortMA.enqueue(node.close);
         longMA.enqueue(node.close);
 
         if (y < startYear) { lastMonth = m; lastYear = y; continue; }
         if (y > endYear)   break;
 
-        // monthly capital deposit
+        // add monthly capital to cash reserve
         if (m != lastMonth || y != lastYear) {
             cash += monthlyCapital;
             result.totalInvested += monthlyCapital;
-            newCashAvailable = true;
             lastMonth = m;
             lastYear  = y;
         }
@@ -67,7 +67,7 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
             curr_long  = longMA.getAverage();
 
             if (prevValues) {
-                // Golden Cross — buy everything
+                // Golden Cross — enter market
                 if (prev_short < prev_long && curr_short > curr_long) {
                     inMarket = true;
                     if (cash > 0.0) {
@@ -75,9 +75,8 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
                         cash = 0.0;
                         result.totalTrades++;
                     }
-                    newCashAvailable = false;
                 }
-                // Death Cross — sell everything
+                // Death Cross — exit market
                 else if (prev_short > prev_long && curr_short < curr_long) {
                     inMarket = false;
                     if (fractionalShares > 0.0) {
@@ -88,13 +87,14 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
                 }
             }
 
-            // dip-buy while in market
-            if (inMarket && cash > 0.0) {
+            // Dip detection — runs every day regardless of market status
+            if (cash > 0.0) {
                 double high12 = node.close;
                 PriceHistory::ReverseIterator rit(&(*it));
                 int steps = 0;
                 while (steps < lookbackDays && rit != history->rend()) {
                     ++rit; ++steps;
+                    if (!(rit != history->rend())) break;
                     double c = (*rit).close;
                     if (c > high12) high12 = c;
                 }
@@ -104,15 +104,21 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
 
                 double toInvest = 0.0;
                 if (dropFromHigh >= severeDipThreshold) {
+                    // severe crash — deploy ALL cash (in OR out of market)
                     toInvest = cash;
-                    newCashAvailable = false;
-                } else if (dropFromHigh >= mildDipThreshold) {
-                    toInvest = mildMultiplier * monthlyCapital;
-                    newCashAvailable = false;
-                } else if (newCashAvailable) {
-                    toInvest = monthlyCapital;
-                    newCashAvailable = false;
+                } else if (inMarket) {
+                    if (dropFromHigh >= moderateDipThreshold) {
+                        // moderate dip — 2x mild multiplier
+                        toInvest = mildMultiplier * 2.0 * monthlyCapital;
+                    } else if (dropFromHigh >= mildDipThreshold) {
+                        // mild dip — amplified buy
+                        toInvest = mildMultiplier * monthlyCapital;
+                    } else {
+                        // no dip — invest monthly as baseline
+                        toInvest = monthlyCapital;
+                    }
                 }
+                // out of market + no severe dip: hold cash, accumulate for golden cross
 
                 if (toInvest > cash) toInvest = cash;
                 if (toInvest > 0.0) {

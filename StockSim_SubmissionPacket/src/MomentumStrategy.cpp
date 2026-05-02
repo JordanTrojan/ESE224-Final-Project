@@ -61,7 +61,7 @@ SimResult MomentumStrategy::backtest(PriceHistory* history, double monthlyCapita
                 ++steps;
             }
 
-            if (steps == lookbackDays) {
+            if (steps == lookbackDays && (rit != history->rend())) {
                 double pastPrice      = (*rit).close;
                 double trailingReturn = (node.close - pastPrice) / pastPrice * 100.0;
 
