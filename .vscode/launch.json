@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": ".",
-      "program": "build/Debug/outDebug",
+      "cwd": "c:/Users/trich/OneDrive/Desktop/ESE224/ESE224-Final-Project/Trojan_Jordan_Attrino_Evan_StockSim",
+      "program": "c:/Users/trich/OneDrive/Desktop/ESE224/ESE224-Final-Project/Trojan_Jordan_Attrino_Evan_StockSim/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

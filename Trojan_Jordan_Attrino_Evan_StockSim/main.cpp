@@ -17,8 +17,7 @@
  * Compile with C++11 or later:
  *   g++ -std=c++11 -Iinclude src/*.cpp main.cpp -o stocksim
  */
-//g++ -std=c++11 -Iinclude src/PriceHistory.cpp src/FinancialAsset.cpp src/CSVParser.cpp src/Stock.cpp src/ETF.cpp src/CircularQueue.cpp src/TradeStack.cpp src/OrderQueue.cpp src/StockBST.cpp src/Portfolio.cpp src/TradingStrategy.cpp src/FixedSIPStrategy.cpp src/DynamicSIPStrategy.cpp src/GoldenCrossStrategy.cpp src/MomentumStrategy.cpp main.cpp -o stocksim
-//g++ -O3 -std=c++17 -o stocksim_sweep.exe main.cpp src/*.cpp -Iinclude
+//g++ -O3 -std=c++17 -fopenmp -o stocksim.exe main.cpp src/*.cpp -Iinclude
 #include <iostream>
 #include <string>
 #include <limits>
@@ -464,14 +463,6 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
     // Rule: every mildDip must be < severeDip, shortWindow < longWindow.
     // ================================================================
 
-    // Original broad sweep:
-    // vector<int>    shortWindows = { 15, 20, 25, 30, 35, 50, 100, 150 };
-    // vector<int>    longWindows  = { 150, 200, 250, 275, 300, 325, 350 };
-    // vector<double> mildDips     = { 2, 3, 3.5, 3.75, 4, 5, 6, 7, 8, 9, 10, 12 };
-    // vector<double> severeDips   = { 8, 10, 12, 15, 20, 25, 30 };
-    // vector<double> multipliers  = { 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 };
-    // vector<int>    lookbacks    = { 126, 252, 504 };
-
     vector<int>    shortWindows     = { 22, 23, 24, 25, 26};
     vector<int>    longWindows      = { 225, 229, 230, 231, 233, 234, 235, 236, 237};
     vector<double> mildDips         = { 2.6, 2.65, 2.7, 2.75, 2.8, 2.85, 2.9};
@@ -608,9 +599,9 @@ void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYe
     int       updateStep = (int)(total / 200);  // update bar every 0.5%
     if (updateStep < 1) updateStep = 1;
 
-    // Top-1000 tracking: {finalValue, csvRow}
+    // Top-100 tracking: {finalValue, csvRow}
     vector<pair<double,string>> top100;
-    top100.reserve(1001);
+    top100.reserve(101);
 
     for (int a=0;a<nSW;a++) {
         for (int b=0;b<nLW;b++) {
@@ -652,11 +643,11 @@ void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYe
                                         << res.cagr << "," << res.maxDrawdown << "," << res.totalTrades;
                                     string csvRow = row.str();
 
-                                    if ((int)top100.size() < 1000) {
+                                    if ((int)top100.size() < 100) {
                                         top100.push_back({res.finalValue, csvRow});
                                     } else {
                                         int worstIdx = 0;
-                                        for (int x = 1; x < 1000; x++)
+                                        for (int x = 1; x < 100; x++)
                                             if (top100[x].first < top100[worstIdx].first) worstIdx = x;
                                         if (res.finalValue > top100[worstIdx].first)
                                             top100[worstIdx] = {res.finalValue, csvRow};
@@ -669,6 +660,16 @@ void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYe
                                         cout << "\r[";
                                         for (int box=0;box<50;box++) cout << (box < filled ? "=" : " ");
                                         cout << "] " << pct << "%  (" << current << "/" << total << ")" << flush;
+
+                                        // Flush current top 100 so a crash doesn't lose everything
+                                        vector<pair<double,string>> snapshot = top100;
+                                        sort(snapshot.begin(), snapshot.end(),
+                                             [](const pair<double,string>& a, const pair<double,string>& b){ return a.first > b.first; });
+                                        ofstream csvOut("sweep_top100.csv");
+                                        csvOut << "Rank,SW,LW,MildDip,SevereDip,Mult,Lookback,RallyThreshold,RallyMultiplier,FinalValue,TotalReturn,CAGR,MaxDrawdown,TotalTrades\n";
+                                        for (int si = 0; si < (int)snapshot.size(); si++)
+                                            csvOut << (si+1) << "," << snapshot[si].second << "\n";
+                                        csvOut.close();
                                     }
                                 }
                             }
@@ -678,16 +679,6 @@ void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYe
             }
         }
     }
-
-    // Sort top 100 descending and write CSV
-    sort(top100.begin(), top100.end(),
-         [](const pair<double,string>& a, const pair<double,string>& b){ return a.first > b.first; });
-
-    ofstream csv("sweep_top100.csv");
-    csv << "Rank,SW,LW,MildDip,SevereDip,Mult,Lookback,RallyThreshold,RallyMultiplier,FinalValue,TotalReturn,CAGR,MaxDrawdown,TotalTrades\n";
-    for (int i = 0; i < (int)top100.size(); i++)
-        csv << (i+1) << "," << top100[i].second << "\n";
-    csv.close();
 
     cout << "\n\nTop " << top100.size() << " results written to sweep_top100.csv\n";
     cout << "Optimal parameters: " << bestParams << "\n";

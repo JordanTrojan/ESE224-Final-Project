@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(g++ -O2 -std=c++17 -o stocksim_sweep.exe main.cpp src/*.cpp -Iinclude)"
-    ]
-  }
-}
