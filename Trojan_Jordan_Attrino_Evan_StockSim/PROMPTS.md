@@ -4,25 +4,6 @@
 
 ---
 
-## Instructions
-For every AI prompt you use during this project, add an entry below in the format shown.
-This file gets submitted with your project and is the source of truth for your AI Documentation grade (10 pts).
-You must also fill out the AI Usage Feedback Form after completing the project:
-https://docs.google.com/forms/d/1NpkLKFrnvGgSsycC4Ba0IhCPSL_MIHtGaU-X84D5CnY
-
----
-
-## Format
-```
-### Section: [e.g., PriceHistory / CSVParser / GoldenCrossStrategy / Report Section 3]
-**Prompt:**
-[paste your exact prompt here]
-**What you changed / why (if any):**
-[what was wrong or insufficient, and what you modified]
-```
-
----
-
 ## Prompts
 
 ### Section: General C++ Concepts
@@ -31,24 +12,6 @@ What is a getter and a setter
 
 **What you changed / why (optional):**
 Used the explanation to understand encapsulation patterns. Wrote my own getters/setters across all classes following the convention.
-
----
-
-### Section: PriceNode.h
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Wrote the struct directly from the project specification. Just date, OHLCV fields, and next/prev pointers as listed in the spec.
-
----
-
-### Section: FinancialAsset.cpp
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Implemented the constructor and getters/setters directly from the header — straightforward member assignment. Also defined the empty virtual destructor since pure virtual methods belong to derived classes.
 
 ---
 
@@ -205,24 +168,6 @@ AI noted volume is the last field with no trailing comma, so I just call stol(li
 
 ---
 
-### Section: CSVParser / NVDA column order
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Wrote the dynamic header detection logic myself after reading the project spec note about NVDA having a non-standard column order (Date, Adj Close, Close, High, Low, Open, Volume). Built a header parser that maps column names to indices so the parser works on both standard Yahoo format and NVDA's layout.
-
----
-
-### Section: Stock.cpp
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Implemented constructor, destructor, loadFromCSV (which delegates to CSVParser), getPriceOnDate, getYearStartPrice/getYearEndPrice (using forward and reverse iterators respectively), and printSummary on my own. The getYearStartPrice/getYearEndPrice helpers made calculateAnnualReturn simple.
-
----
-
 ### Section: ETF / printSummary inheritance
 **Prompt:**
 yea but what if it is called in etf / yea but if a stock is called there now wont be a bottom line
@@ -247,15 +192,6 @@ void ETF::setExpenseRatio (double ratio) const { expenseRatio = ratio; } [showed
 
 **What you changed / why (optional):**
 AI pointed out setters can't be const because they modify state. Removed const from setter signature.
-
----
-
-### Section: CircularQueue.cpp
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Implemented the circular buffer entirely on my own using head/tail/count tracking with modular arithmetic. The trickiest part was the enqueue-when-full case which advances head along with tail to overwrite the oldest value. Tested with manual enqueue sequences before integrating with the strategies.
 
 ---
 
@@ -310,15 +246,6 @@ why current!= nullptr? / next is auto initialized to nullptr?
 
 **What you changed / why (optional):**
 Confirmed that next is NOT auto-initialized — I have to set it explicitly when creating a new node. Made sure my QueueNode constructor passes nullptr.
-
----
-
-### Section: StockBST.cpp
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Wrote all BST logic myself: insertHelper (recursive with duplicates going right), searchHelper (standard recursive BST search), rangeSearchHelper (with pruning — only recurse left if low < node->key, only recurse right if high > node->key), all three traversals (inorder/preorder/postorder), heightHelper (max of left and right + 1, returns -1 for empty), clearHelper (post-order delete to free children before parent), and findMax (walk right until null). The only thing I had to look up later was that BSTNode is nested inside StockBST as a public struct so external code needs StockBST::BSTNode.
 
 ---
 
@@ -385,24 +312,6 @@ Used as reference for layout. Rewrote in my own format using the variable names 
 
 ---
 
-### Section: Portfolio / getTotalValue / getTotalMarketValue
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Standard accumulator loops over the holdings vector. Cost basis and market value calculations are direct from the formulas given in the spec.
-
----
-
-### Section: Portfolio / sortHoldingsByUnrealizedReturn
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Same lambda approach as sortHoldingsByTicker but comparing computed return percentages instead of strings. Used > for descending order so best performer comes first.
-
----
-
 ### Section: StockManager / template private data
 **Prompt:**
 why isnt pricate data handlesa in construcftor?
@@ -412,30 +321,12 @@ Confirmed that vector<T*> auto-initializes to empty so no constructor body neede
 
 ---
 
-### Section: StockManager / template implementation
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Implemented the entire template class in the header (templates can't be split across .cpp). All methods follow the same patterns I'd already used elsewhere — vector iteration, lambda comparators for sort, ticker-based linear search for find/remove. The destructor deletes each T* before clearing the vector.
-
----
-
 ### Section: TradingStrategy / what is backtest
 **Prompt:**
 what is backtest? / so we simulate only one asset?
 
 **What you changed / why (optional):**
 Conceptual question to understand what the strategy classes were supposed to do. Clarified single-asset simulation. No code change — just understanding before implementing.
-
----
-
-### Section: TradingStrategy.cpp / helpers
-**Prompt:**
-No AI used.
-
-**What you changed / why (optional):**
-Implemented printResult (just formatted cout), calculateCAGR using the formula (endVal/startVal)^(1/years) - 1, and calculateMaxDrawdown by tracking the running peak and computing the largest drop from peak in a single pass over portfolioValues. All three are short and direct from the formulas in the spec.
 
 ---
 
@@ -572,14 +463,5 @@ g++ -std=c++11 -Iinclude src/*.cpp main.cpp -o stocksim
 
 **What you changed / why (optional):**
 Fixed missing #include statements one by one (CSVParser.h, fstream, vector, iomanip, cmath, algorithm). Also fixed circular include in GoldenCrossStrategy.h that was causing duplicate definition errors — turned out a duplicate .h file was sitting in src/ alongside the .cpp.
-
----
-
-### Section: General / strategy realism
-**Prompt:**
-Would this bring any benefit to using in my actual brokerage lol
-
-**What you changed / why (optional):**
-Conceptual discussion about why backtest results don't translate to real-world performance (overfitting, no transaction costs, no taxes on Death Cross sells, slippage, etc.). Used this discussion in the Conclusion section of the report.
 
 ---
