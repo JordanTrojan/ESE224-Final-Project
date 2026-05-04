@@ -41,7 +41,6 @@ private:
     int    lookbackDays;         // days for rolling high/low calculation (e.g. 252 = 1 year)
     double rallyThreshold;       // % rise from lookback low that triggers rally mode (e.g. 20.0)
     double rallyMultiplier;      // fraction of monthlyCapital to invest during a rally (e.g. 0.1)
-
 public:
     DynamicSIPStrategy(int shortWindow, int longWindow,
                        double mildDipThreshold, double severeDipThreshold,

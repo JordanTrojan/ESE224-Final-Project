@@ -70,7 +70,7 @@ void menuPortfolioSummary(Portfolio& portfolio);
 void menuTradeHistory(Portfolio& portfolio);
 
 // Bonus
-void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear, StockBST& bst);
+void parameterSweep(PriceHistory* history, double monthlyCapital, int startYear, int endYear, StockBST& bst);
 // ===== REMOVE HERE (CSV sweep additions) =====
 void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYear);
 // ===== END REMOVE HERE =====
@@ -148,28 +148,23 @@ int main() {
             case 14: menuPortfolioSummary(portfolio);                               break;
             case 15: menuTradeHistory(portfolio);                                   break;
             case 16: {
-                ETF* spx = etfManager.findByTicker("SPX");
-                if (!spx) { cout << "SPX not loaded. Load it first." << endl; break; }
+                string sweepTicker;
+                cout << "Ticker to sweep: "; cin >> sweepTicker;
+                for (char& c : sweepTicker) c = toupper(c);
+                PriceHistory* sweepHistory = nullptr;
+                Stock* ss = stockManager.findByTicker(sweepTicker);
+                if (ss) sweepHistory = ss->getHistory();
+                ETF*   se = etfManager.findByTicker(sweepTicker);
+                if (se) sweepHistory = se->getHistory();
+                if (!sweepHistory) { cout << "Ticker not found." << endl; break; }
                 double monthlyCapital; int startYear, endYear;
                 cout << "Monthly capital: "; cin >> monthlyCapital;
                 cout << "Start year: ";      cin >> startYear;
                 cout << "End year: ";        cin >> endYear;
                 StockBST sweepBST;
-                parameterSweep(spx, monthlyCapital, startYear, endYear, sweepBST);
+                parameterSweep(sweepHistory, monthlyCapital, startYear, endYear, sweepBST);
                 break;
             }
-            // ===== REMOVE HERE (CSV sweep additions) =====
-            case 17: {
-                ETF* spx = etfManager.findByTicker("SPX");
-                if (!spx) { cout << "SPX not loaded. Load it first." << endl; break; }
-                double monthlyCapital; int startYear, endYear;
-                cout << "Monthly capital: "; cin >> monthlyCapital;
-                cout << "Start year: ";      cin >> startYear;
-                cout << "End year: ";        cin >> endYear;
-                parameterSweepCSV(spx, monthlyCapital, startYear, endYear);
-                break;
-            }
-            // ===== END REMOVE HERE =====
             case  0: cout << "Goodbye, " << studentName << "!\n";                  break;
             default: cout << "Invalid choice. Please enter 0–17.\n";               break;
         }
@@ -186,35 +181,27 @@ void menuLoadData(StockManager<ETF>& etfManager, StockManager<Stock>& stockManag
     string ticker;
     cout << "Enter ticker to load (SPX, AMZN, NVDA, or all): ";
     cin >> ticker;
+    for (char& c : ticker) c = toupper(c);
 
-    if (ticker == "SPX" || ticker == "all") {
+    if (ticker == "SPX" || ticker == "ALL") {
         ETF* spx = new ETF("SPX", "S&P 500 Index", "Index", 0.0);
         if (spx->loadFromCSV("data/SPX.csv"))
             etfManager.addAsset(spx);
-        else {
-            cout << "Failed to load SPX.csv" << endl;
-            delete spx;
-        }
+        else { cout << "Failed to load SPX.csv" << endl; delete spx; }
     }
-    if (ticker == "AMZN" || ticker == "all") {
+    if (ticker == "AMZN" || ticker == "ALL") {
         Stock* amzn = new Stock("AMZN", "Amazon Inc.", "Technology");
         if (amzn->loadFromCSV("data/AMZN.csv"))
             stockManager.addAsset(amzn);
-        else {
-            cout << "Failed to load AMZN.csv" << endl;
-            delete amzn;
-        }
+        else { cout << "Failed to load AMZN.csv" << endl; delete amzn; }
     }
-    if (ticker == "NVDA" || ticker == "all") {
+    if (ticker == "NVDA" || ticker == "ALL") {
         Stock* nvda = new Stock("NVDA", "NVIDIA Corporation", "Technology");
         if (nvda->loadFromCSV("data/NVidia_stock_history.csv"))
             stockManager.addAsset(nvda);
-        else {
-            cout << "Failed to load NVidia_stock_history.csv" << endl;
-            delete nvda;
-        }
+        else { cout << "Failed to load NVidia_stock_history.csv" << endl; delete nvda; }
     }
-    if (ticker != "SPX" && ticker != "AMZN" && ticker != "NVDA" && ticker != "all") {
+    if (ticker != "SPX" && ticker != "AMZN" && ticker != "NVDA" && ticker != "ALL") {
         cout << "Unknown ticker: " << ticker << endl;
     }
 }
@@ -380,7 +367,7 @@ void menuRunStrategy(StockManager<ETF>& etfManager, StockManager<Stock>& stockMa
     if (choice == 1) {
         strategy = new FixedSIPStrategy();
     } else if (choice == 2) {
-        strategy = new DynamicSIPStrategy(25, 250, 3.5, 10.0, 0.5, 126);
+        strategy = new DynamicSIPStrategy(24, 234, 2.75, 18.75, 0.1, 62, 9.2, 0.40);
     } else if (choice == 3) {
         strategy = new GoldenCrossStrategy(50, 200);
     } else if (choice == 4) {
@@ -410,7 +397,7 @@ void menuCompareStrategies(StockManager<ETF>& etfManager) {
 
     TradingStrategy* strategies[4];
     strategies[0] = new FixedSIPStrategy();
-    strategies[1] = new DynamicSIPStrategy(24, 234, 2.7, 18.75, 0.1, 63);
+    strategies[1] = new DynamicSIPStrategy(24, 234, 2.75, 18.75, 0.1, 62, 9.2, 0.40);
     strategies[2] = new GoldenCrossStrategy(50, 200);
     strategies[3] = new MomentumStrategy(5.0, 126);
 
@@ -455,7 +442,7 @@ void menuTradeHistory(Portfolio& portfolio) {
 // ---------------------------------------------------------------
 // BONUS: Parameter Sweep for DynamicSIPStrategy
 // ---------------------------------------------------------------
-void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear, StockBST& bst) {
+void parameterSweep(PriceHistory* history, double monthlyCapital, int startYear, int endYear, StockBST& bst) {
 
     // ================================================================
     // EDIT THESE ARRAYS to control what values are tested.
@@ -463,15 +450,14 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
     // Rule: every mildDip must be < severeDip, shortWindow < longWindow.
     // ================================================================
 
-    vector<int>    shortWindows     = { 22, 24, 26 };
-    vector<int>    longWindows      = { 229, 234, 237 };
-    vector<double> mildDips         = { 2.65, 2.75, 2.85 };
-    vector<double> severeDips       = { 17.0, 18.0, 19.0 };
-    vector<double> multipliers      = { 0.05, 0.1, 0.25 };
-    vector<int>    lookbacks        = { 50, 63 };
-    vector<double> rallyThresholds  = { 0.0, 20.0 };
-    vector<double> rallyMultipliers = { 0.1, 0.5 };
-
+    vector<int>    shortWindows     = { 22, 24, 25, 26 };
+    vector<int>    longWindows      = { 229, 234, 237, 250 };
+    vector<double> mildDips         = { 2.65, 2.75, 2.85, 3.5 };
+    vector<double> severeDips       = { 17.0, 18.0, 18.75, 19.0, 10.0 };
+    vector<double> multipliers      = { 0.05, 0.1, 0.25, 0.5 };
+    vector<int>    lookbacks        = { 50, 62, 63 };
+    vector<double> rallyThresholds  = { 0.0, 9.2, 20.0 };
+    vector<double> rallyMultipliers = { 0.1, 0.4, 0.5 };
     // ================================================================
 
     int nSW = (int)shortWindows.size(),     nLW = (int)longWindows.size();
@@ -512,7 +498,7 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
                                     double rmt  = rallyMultipliers[rmi];
 
                                     DynamicSIPStrategy strat(sw, lw, mild, severe, mult, lb, rt, rmt);
-                                    SimResult res = strat.backtest(spx->getHistory(), monthlyCapital, startYear, endYear);
+                                    SimResult res = strat.backtest(history, monthlyCapital, startYear, endYear);
 
                                     string ticker = "sw=" + to_string(sw) + "_lw=" + to_string(lw) +
                                                     "_m=" + to_string(mild) + "_s=" + to_string(severe) +
@@ -555,271 +541,3 @@ void parameterSweep(ETF* spx, double monthlyCapital, int startYear, int endYear,
     cout << "Best final value  : $" << fixed << setprecision(2) << bestValue << endl;
 }
 
-// ===== REMOVE HERE (CSV sweep additions) =====
-void parameterSweepCSV(ETF* spx, double monthlyCapital, int startYear, int endYear) {
-    // Optimised: flat contiguous array (no linked-list pointer chasing), O(1) moving
-    // averages via ring buffer with running sum, O(1) amortised sliding-window max/min
-    // via manual monotone-queue arrays, optional OpenMP multi-threading, per-thread
-    // local top-100 lists (zero lock contention in the hot path).
-    // Compile with: g++ -O3 -std=c++17 -fopenmp ...  to enable multi-threading.
-
-    // Previous fine-grained sweep (known-optimal neighbourhood — uncomment to re-run):
-    /*
-    vector<int>    shortWindows     = { 22, 23, 24, 25, 26};
-    vector<int>    longWindows      = { 225, 229, 230, 231, 233, 234, 235, 236, 237};
-    vector<double> mildDips         = { 2.6, 2.65, 2.7, 2.75, 2.8, 2.85, 2.9};
-    vector<double> severeDips       = { 16, 16.5, 17, 17.25, 17.5, 17.75, 18, 18.25, 18.5, 18.75, 19 };
-    vector<double> multipliers      = { 0.05, .075, 0.1, .125, 0.25 };
-    vector<int>    lookbacks        = { 42, 50, 55, 57, 60, 63, 65, 70};
-    vector<double> rallyThresholds  = { 0.0, 15.0, 20.0, 25.0 };
-    vector<double> rallyMultipliers = { 0.1, 0.5 };
-    */
-
-    vector<int>    shortWindows     = { 5, 8, 10, 12, 15, 18, 20, 22, 24, 25, 28, 30, 35, 40, 50, 60, 75, 100 };
-    vector<int>    longWindows      = { 110, 125, 150, 175, 200, 215, 225, 235, 250, 275, 300, 325, 350, 400, 450, 500, 600, 750 };
-    vector<double> mildDips         = { 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0 };
-    vector<double> severeDips       = { 13.0, 15.0, 17.0, 18.0, 20.0, 22.0, 25.0, 28.0, 30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 70.0 };
-    vector<double> multipliers      = { 0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0 };
-    vector<int>    lookbacks        = { 21, 42, 63, 90, 126, 175, 252 };
-    vector<double> rallyThresholds  = { 0.0, 10.0, 20.0, 30.0 };
-    vector<double> rallyMultipliers = { 0.1, 0.5 };
-
-    int nSW = (int)shortWindows.size(),    nLW = (int)longWindows.size();
-    int nMD = (int)mildDips.size(),        nSD = (int)severeDips.size();
-    int nMU = (int)multipliers.size(),     nLB = (int)lookbacks.size();
-    int nRT = (int)rallyThresholds.size(), nRM = (int)rallyMultipliers.size();
-    long long total = (long long)nSW * nLW * nMD * nSD * nMU * nLB * nRT * nRM;
-
-    // Pre-flatten the linked list once into a contiguous array with pre-computed year/month.
-    // This eliminates pointer chasing and string parsing inside the hot loop.
-    struct FlatBar { int year, month; double close; };
-    vector<FlatBar> bars;
-    bars.reserve(spx->getHistory()->getSize());
-    for (PriceHistory::Iterator it = spx->getHistory()->begin(); it != spx->getHistory()->end(); ++it) {
-        PriceNode& nd = *it;
-        bars.push_back({CSVParser::extractYear(nd.date), CSVParser::extractMonth(nd.date), nd.close});
-    }
-
-    cout << "Running CSV sweep (" << total << " combinations)..." << endl;
-    cout << "["; for (int i = 0; i < 50; i++) cout << " "; cout << "] 0%" << flush;
-
-    // Fast backtest lambda — pure function, no captures, thread-safe.
-    // Uses O(1) ring-buffer MAs and O(1) amortised monotone-queue sliding window.
-    // Stack-allocated buffers (no heap allocs in the hot path).
-    // Max sw=100, max lw=750, max lb=252 — sizes hard-coded to match parameter arrays above.
-    auto fastBacktest = [](
-        const vector<FlatBar>& data,
-        int sw, int lw, double mildDip, double severeDip,
-        double mul, int lb, double rallyThr, double rallyMul,
-        double monthlyCap, int sy, int ey) -> SimResult
-    {
-        SimResult r; r.strategyName=""; r.finalValue=0; r.totalInvested=0;
-        r.totalReturn=0; r.cagr=0; r.maxDrawdown=0; r.totalTrades=0;
-        if (data.empty()) return r;
-
-        // Ring buffers with running sum — O(1) moving average, no heap allocation
-        double sbuf[101], lbuf[751];   // sw<=100, lw<=750
-        int sh=0, lh=0, sc=0, lc=0;
-        double ss=0.0, ls=0.0;
-
-        double ps=0.0, pl=0.0, cs=0.0, cl=0.0;
-        bool prevOk=false, inMkt=false;
-        double modDip = (mildDip + severeDip) / 2.0;
-        double frac=0.0, cash=0.0;
-
-        // Monotone-queue sliding window max/min — O(1) amortised, no <deque> needed
-        struct MQE { double val; int idx; };
-        MQE qHi[512], qLo[512];       // lb<=252, so queue depth < 512 always
-        int qHiH=0, qHiT=0, qLoH=0, qLoT=0;
-
-        int dayIdx=0, lm=-1, ly=-1;
-        double lastC=0.0, peak=0.0;
-
-        for (int i = 0; i < (int)data.size(); i++) {
-            double c = data[i].close;
-            int y = data[i].year, m = data[i].month;
-
-            // Short MA — O(1)
-            if (sc == sw) ss -= sbuf[sh];
-            sbuf[sh] = c; ss += c; sh = (sh+1)%sw; if (sc<sw) sc++;
-
-            // Long MA — O(1)
-            if (lc == lw) ls -= lbuf[lh];
-            lbuf[lh] = c; ls += c; lh = (lh+1)%lw; if (lc<lw) lc++;
-
-            // Sliding high
-            while (qHiH<qHiT && qHi[qHiH%512].idx < dayIdx-lb) qHiH++;
-            while (qHiH<qHiT && qHi[(qHiT-1)%512].val <= c)     qHiT--;
-            qHi[qHiT%512]={c,dayIdx}; qHiT++;
-
-            // Sliding low
-            while (qLoH<qLoT && qLo[qLoH%512].idx < dayIdx-lb) qLoH++;
-            while (qLoH<qLoT && qLo[(qLoT-1)%512].val >= c)     qLoT--;
-            qLo[qLoT%512]={c,dayIdx}; qLoT++;
-
-            dayIdx++;
-            if (y < sy) { lm=m; ly=y; continue; }
-            if (y > ey) break;
-
-            if (m!=lm || y!=ly) { cash+=monthlyCap; r.totalInvested+=monthlyCap; lm=m; ly=y; }
-
-            if (sc==sw && lc==lw) {
-                cs=ss/sw; cl=ls/lw;
-                if (prevOk) {
-                    if (ps<pl && cs>cl) {
-                        inMkt=true;
-                        if (cash>0.0) { frac+=cash/c; cash=0.0; r.totalTrades++; }
-                    } else if (ps>pl && cs<cl) {
-                        inMkt=false;
-                        if (frac>0.0) { cash+=frac*c; frac=0.0; r.totalTrades++; }
-                    }
-                }
-                if (cash>0.0) {
-                    double hi   = qHi[qHiH%512].val, lo = qLo[qLoH%512].val;
-                    double drop = (hi>0.0) ? (hi-c)/hi*100.0 : 0.0;
-                    double rise = (lo>0.0) ? (c-lo)/lo*100.0  : 0.0;
-                    double buy  = 0.0;
-                    if      (drop>=severeDip)                    buy=cash;
-                    else if (inMkt) {
-                        if      (drop>=modDip)                   buy=mul*2.0*monthlyCap;
-                        else if (drop>=mildDip)                  buy=mul*monthlyCap;
-                        else if (rallyThr>0.0&&rise>=rallyThr)  buy=rallyMul*monthlyCap;
-                        else                                      buy=monthlyCap;
-                    }
-                    if (buy>cash) buy=cash;
-                    if (buy>0.0) { frac+=buy/c; cash-=buy; r.totalTrades++; }
-                }
-                ps=cs; pl=cl; prevOk=true;
-            }
-            lastC=c;
-            double pv=frac*c+cash;
-            if (pv>peak) peak=pv;
-            else if (peak>0.0) { double dd=(peak-pv)/peak*100.0; if(dd>r.maxDrawdown) r.maxDrawdown=dd; }
-        }
-
-        r.finalValue  = frac*lastC+cash;
-        r.totalReturn = (r.totalInvested>0.0)
-            ? (r.finalValue-r.totalInvested)/r.totalInvested*100.0 : 0.0;
-        int yrs = ey-sy;
-        r.cagr = (yrs>0 && r.totalInvested>0.0)
-            ? (pow(r.finalValue/r.totalInvested, 1.0/yrs)-1.0)*100.0 : 0.0;
-        return r;
-    };
-
-    // Parallel sweep: each outer-a iteration is a chunk for one thread.
-    // Each thread builds its own localTop — no locks in the hot path.
-    // After each chunk the critical section merges results, updates the progress
-    // bar, and flushes the current top-100 to CSV (crash-safe).
-    vector<pair<double,string>> top100;
-    top100.reserve(101);
-    long long current = 0;
-    double bestValue  = -1.0;
-    string bestParams;
-
-    #pragma omp parallel for schedule(dynamic, 1)
-    for (int a = 0; a < nSW; a++) {
-        vector<pair<double,string>> localTop;
-        localTop.reserve(101);
-        long long localCount = 0;
-        double    localBest  = -1.0;
-        string    localBestP;
-
-        for (int b=0; b<nLW; b++) {
-          for (int i=0; i<nMD; i++) {
-            for (int j=0; j<nSD; j++) {
-              for (int k=0; k<nMU; k++) {
-                for (int L=0; L<nLB; L++) {
-                  for (int ri=0; ri<nRT; ri++) {
-                    for (int rmi=0; rmi<nRM; rmi++) {
-                        int    sw  = shortWindows[a], lw  = longWindows[b];
-                        double mild= mildDips[i],     sev = severeDips[j];
-                        double mul = multipliers[k];
-                        int    lb  = lookbacks[L];
-                        double rt  = rallyThresholds[ri], rmt = rallyMultipliers[rmi];
-
-                        SimResult res = fastBacktest(bars, sw, lw, mild, sev,
-                                                     mul, lb, rt, rmt,
-                                                     monthlyCapital, startYear, endYear);
-
-                        if (res.finalValue > localBest) {
-                            localBest = res.finalValue;
-                            char buf[256];
-                            snprintf(buf, sizeof(buf),
-                                "sw=%d lw=%d mild=%.2f%% severe=%.2f%% mult=%.3f lookback=%d rallyThr=%.1f rallyMult=%.2f",
-                                sw, lw, mild, sev, mul, lb, rt, rmt);
-                            localBestP = buf;
-                        }
-
-                        char rowBuf[256];
-                        snprintf(rowBuf, sizeof(rowBuf),
-                            "%d,%d,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%d",
-                            sw, lw, mild, sev, mul, lb, rt, rmt,
-                            res.finalValue, res.totalReturn, res.cagr,
-                            res.maxDrawdown, res.totalTrades);
-                        string csvRow(rowBuf);
-
-                        if ((int)localTop.size() < 100) {
-                            localTop.push_back({res.finalValue, csvRow});
-                        } else {
-                            int wi = 0;
-                            for (int x=1; x<100; x++)
-                                if (localTop[x].first < localTop[wi].first) wi=x;
-                            if (res.finalValue > localTop[wi].first)
-                                localTop[wi] = {res.finalValue, csvRow};
-                        }
-                        localCount++;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          // Print progress after every (a,b) pair — 324 ticks total (no lock needed single-threaded)
-          {
-              long long done   = current + localCount;
-              int filled = (int)(50.0 * done / total);
-              int pct    = (int)(100.0 * done / total);
-              cout << "\r[";
-              for (int box=0; box<50; box++) cout << (box<filled ? '=' : ' ');
-              cout << "] " << pct << "% (" << done << "/" << total << ")" << flush;
-          }
-        }
-
-        #pragma omp critical
-        {
-            current += localCount;
-            if (localBest > bestValue) { bestValue=localBest; bestParams=localBestP; }
-
-            for (auto& e : localTop) {
-                if ((int)top100.size() < 100) {
-                    top100.push_back(e);
-                } else {
-                    int wi=0;
-                    for (int x=1; x<100; x++)
-                        if (top100[x].first < top100[wi].first) wi=x;
-                    if (e.first > top100[wi].first) top100[wi]=e;
-                }
-            }
-
-            int filled = (int)(50.0*current/total);
-            int pct    = (int)(100.0*current/total);
-            cout << "\r[";
-            for (int box=0; box<50; box++) cout << (box<filled ? '=' : ' ');
-            cout << "] " << pct << "% (" << current << "/" << total << ")" << flush;
-
-            vector<pair<double,string>> snap = top100;
-            sort(snap.begin(), snap.end(),
-                 [](const pair<double,string>& x, const pair<double,string>& y){ return x.first > y.first; });
-            ofstream csvOut("sweep_top100.csv");
-            csvOut << "Rank,SW,LW,MildDip,SevereDip,Mult,Lookback,RallyThreshold,RallyMultiplier,FinalValue,TotalReturn,CAGR,MaxDrawdown,TotalTrades\n";
-            for (int si=0; si<(int)snap.size(); si++)
-                csvOut << (si+1) << "," << snap[si].second << "\n";
-            csvOut.close();
-        }
-    }
-
-    cout << "\n\nTop " << top100.size() << " results written to sweep_top100.csv\n";
-    cout << "Optimal parameters: " << bestParams << "\n";
-    cout << "Best final value  : $" << fixed << setprecision(2) << bestValue << "\n";
-}
-// ===== END REMOVE HERE =====

@@ -1,7 +1,6 @@
 #include "DynamicSIPStrategy.h"
 #include "CSVParser.h"
 #include <vector>
-#include <deque>   // sliding window max: O(1)/day vs O(lookbackDays)/day with ReverseIterator
 using namespace std;
 
 DynamicSIPStrategy::DynamicSIPStrategy(int shortWindow, int longWindow, double mildDipThreshold, double severeDipThreshold, double mildMultiplier, int lookbackDays, double rallyThreshold, double rallyMultiplier) {
@@ -28,29 +27,26 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
 
     if (!history || history->getSize() == 0) return result;
 
+    // Two circular queues act as moving average windows — enqueue each day's close
     CircularQueue shortMA(shortWindow);
     CircularQueue longMA(longWindow);
 
+    // Track previous day's MAs to detect crossover direction
     double prev_short = 0.0, prev_long = 0.0;
     double curr_short = 0.0, curr_long = 0.0;
-    bool   prevValues = false;
-    bool   inMarket   = false;
+    bool   prevValues = false;  // false until both MAs have a full window of data
+    bool   inMarket   = false;  // true between golden cross and death cross
 
+    // Midpoint between mild and severe — triggers a 2x buy instead of 1x
     double moderateDipThreshold = (mildDipThreshold + severeDipThreshold) / 2.0;
 
-    double fractionalShares = 0.0;
-    double cash             = 0.0;
-    vector<double> portfolioValues;
+    double fractionalShares = 0.0;  // shares held (fractional allowed)
+    double cash             = 0.0;  // uninvested cash balance
+    vector<double> portfolioValues; // daily portfolio value, used for max drawdown calc
     portfolioValues.reserve(history->getSize());
 
-    // Sliding window max (monotonically decreasing) and min (monotonically increasing).
-    // Both O(1) per day — front of each deque is the rolling high/low.
-    deque<pair<double,int>> winMax;
-    deque<pair<double,int>> winMin;
-    int dayIdx = 0;
-
     int    lastMonth = -1, lastYear = -1;
-    double lastClose = 0.0;
+    double lastClose = 0.0;  // saved so final portfolio value uses the last price seen
 
     for (PriceHistory::Iterator it = history->begin(); it != history->end(); ++it) {
         PriceNode& node = *it;
@@ -58,28 +54,14 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
         int y = CSVParser::extractYear(node.date);
         int m = CSVParser::extractMonth(node.date);
 
+        // Feed both MAs every day — warmup period before startYear still builds the windows
         shortMA.enqueue(node.close);
         longMA.enqueue(node.close);
 
-        // Maintain sliding window max/min (runs every day including pre-startYear warmup)
-        while (!winMax.empty() && winMax.front().second < dayIdx - lookbackDays)
-            winMax.pop_front();
-        while (!winMax.empty() && winMax.back().first <= node.close)
-            winMax.pop_back();
-        winMax.push_back({node.close, dayIdx});
-
-        while (!winMin.empty() && winMin.front().second < dayIdx - lookbackDays)
-            winMin.pop_front();
-        while (!winMin.empty() && winMin.back().first >= node.close)
-            winMin.pop_back();
-        winMin.push_back({node.close, dayIdx});
-
-        dayIdx++;
-
-        if (y < startYear) { lastMonth = m; lastYear = y; continue; }
+        if (y < startYear) { lastMonth = m; lastYear = y; continue; }  // warmup — don't invest yet
         if (y > endYear)   break;
 
-        // add monthly capital to cash reserve
+        // First trading day of a new month: add monthly contribution to cash
         if (m != lastMonth || y != lastYear) {
             cash += monthlyCapital;
             result.totalInvested += monthlyCapital;
@@ -87,79 +69,94 @@ SimResult DynamicSIPStrategy::backtest(PriceHistory* history, double monthlyCapi
             lastYear  = y;
         }
 
+        // Only act on crossover signals once both MAs have filled their windows
         if (shortMA.isFull() && longMA.isFull()) {
             curr_short = shortMA.getAverage();
             curr_long  = longMA.getAverage();
 
             if (prevValues) {
-                // Golden Cross — enter market
+                // Golden Cross: short MA crosses above long MA — bull signal, deploy all cash
                 if (prev_short < prev_long && curr_short > curr_long) {
                     inMarket = true;
                     if (cash > 0.0) {
-                        fractionalShares += cash / node.close;
+                        fractionalShares += cash / node.close;  // deploy all accumulated cash
                         cash = 0.0;
                         result.totalTrades++;
                     }
                 }
-                // Death Cross — exit market
+                // Death Cross: short MA crosses below long MA — bear signal, sell everything
                 else if (prev_short > prev_long && curr_short < curr_long) {
                     inMarket = false;
                     if (fractionalShares > 0.0) {
-                        cash += fractionalShares * node.close;
+                        cash += fractionalShares * node.close;  // convert all shares to cash
                         fractionalShares = 0.0;
                         result.totalTrades++;
                     }
                 }
             }
 
-            // Dip detection — runs every day regardless of market status
+            // Dip detection runs every day — checks how far price has fallen from rolling high.
+            // Skip entirely if no cash available (nothing to invest).
             if (cash > 0.0) {
-                double high12  = winMax.front().first; // O(1) sliding window max
-                double low12   = winMin.front().first; // O(1) sliding window min
+                // Walk back lookbackDays using ReverseIterator to find rolling high and low
+                PriceHistory::ReverseIterator rit(&(*it));
+                double high12 = node.close, low12 = node.close;
+                int steps = 0;
+                while (steps < lookbackDays && rit != history->rend()) {
+                    double p = (*rit).close;
+                    if (p > high12) high12 = p;
+                    if (p < low12)  low12  = p;
+                    ++rit;
+                    ++steps;
+                }
 
+                // % drop from the rolling high — used to classify dip severity
                 double dropFromHigh = (high12 > 0.0)
                     ? (high12 - node.close) / high12 * 100.0 : 0.0;
+                // % rise from the rolling low — used to detect rally (reduce buying on surges)
                 double riseFromLow  = (low12  > 0.0)
                     ? (node.close - low12)  / low12  * 100.0 : 0.0;
 
                 double toInvest = 0.0;
                 if (dropFromHigh >= severeDipThreshold) {
-                    // severe crash — deploy ALL cash (in OR out of market)
+                    // Severe crash (e.g. 2008, dot-com) — deploy ALL cash regardless of market status
                     toInvest = cash;
                 } else if (inMarket) {
                     if (dropFromHigh >= moderateDipThreshold) {
-                        // moderate dip — 2x mild multiplier
+                        // Moderate dip — invest 2x the mild multiplier amount
                         toInvest = mildMultiplier * 2.0 * monthlyCapital;
                     } else if (dropFromHigh >= mildDipThreshold) {
-                        // mild dip — amplified buy
+                        // Mild dip — invest multiplier * monthly capital
                         toInvest = mildMultiplier * monthlyCapital;
                     } else if (rallyThreshold > 0.0 && riseFromLow >= rallyThreshold) {
-                        // rally mode — price has surged from lookback low, invest less
+                        // Price has surged from its low — reduce investment to avoid buying at peak
                         toInvest = rallyMultiplier * monthlyCapital;
                     } else {
-                        // no dip, no rally — invest monthly as baseline
+                        // Normal day in market — invest baseline monthly capital
                         toInvest = monthlyCapital;
                     }
                 }
                 // out of market + no severe dip: hold cash, accumulate for golden cross
 
-                if (toInvest > cash) toInvest = cash;
+                if (toInvest > cash) toInvest = cash;  // never invest more than available cash
                 if (toInvest > 0.0) {
-                    fractionalShares += toInvest / node.close;
+                    fractionalShares += toInvest / node.close;  // buy shares at today's price
                     cash             -= toInvest;
                     result.totalTrades++;
                 }
             }
 
+            // Save today's MAs so tomorrow can detect a crossover direction change
             prev_short = curr_short;
             prev_long  = curr_long;
             prevValues = true;
         }
 
         lastClose = node.close;
-        portfolioValues.push_back(fractionalShares * node.close + cash);
+        portfolioValues.push_back(fractionalShares * node.close + cash);  // snapshot for drawdown calc
     }
 
+    // Final portfolio value = shares at last price + remaining cash
     result.finalValue  = fractionalShares * lastClose + cash;
     result.totalReturn = (result.totalInvested > 0)
         ? (result.finalValue - result.totalInvested) / result.totalInvested * 100.0 : 0.0;
