@@ -548,11 +548,4 @@ Fixed missing #include statements one by one (CSVParser.h, fstream, vector, ioma
 
 ---
 
-### Section: Report.pdf
-**Prompt:**
-Would this bring any benefit to using in my actual brokerage lol
 
-**What you changed / why (optional):**
-Conceptual discussion about why backtest results don't translate to real-world performance (overfitting, no transaction costs, no taxes on Death Cross sells, slippage). Used this discussion in the Conclusion section of the report.
-
----
