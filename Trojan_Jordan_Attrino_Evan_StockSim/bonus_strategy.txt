@@ -1,0 +1,31 @@
+Strategy Name     : Dynamic SIP
+monthlyCapital    = $500
+startYear         = 2000
+endYear           = 2020
+ticker            = SPX
+
+Algorithm Description :
+This strategy combines MA crossover filtering with tiered dip buying. A short (24-day)
+and long (234-day) moving average detect market regime: a Golden Cross deploys all
+accumulated cash immediately, while a Death Cross sells all shares and holds cash until
+the next bull signal. While in the market, the algorithm checks daily how far price has
+fallen from the 62-day rolling high — mild dips (>=2.75%) and moderate dips (>=~10.75%)
+trigger scaled investments of the monthly budget, and severe crashes (>=18.75%) dump
+all available cash regardless of MA regime. A rally filter (>=9.2% rise from the rolling
+low) reduces buying to 40% of monthly capital to avoid chasing peaks.
+
+Parameters Used :
+shortWindow        = 24       (short moving average window, days)
+longWindow         = 234      (long moving average window, days)
+mildDipThreshold   = 2.75     (% drop from rolling high to trigger mild dip buy)
+severeDipThreshold = 18.75    (% drop from rolling high to dump all cash)
+mildMultiplier     = 0.1      (fraction of monthlyCapital to invest on mild dip)
+lookbackDays       = 62       (days to look back for rolling high/low)
+rallyThreshold     = 9.2      (% rise from rolling low that triggers rally mode)
+rallyMultiplier    = 0.40     (fraction of monthlyCapital to invest during a rally)
+
+Final Portfolio Value : $401,601.47
+Fixed SIP Baseline    : $276,886.13  (for comparison)
+CAGR                  : 6.23 %
+Max Drawdown          : 32.66 %
+Total Trades          : 461
