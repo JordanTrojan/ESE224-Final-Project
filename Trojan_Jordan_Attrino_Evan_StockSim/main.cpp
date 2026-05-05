@@ -65,7 +65,7 @@ void menuQueueOrder(Portfolio& portfolio);
 void menuExecuteOrder(Portfolio& portfolio);
 void menuUndoTrade(Portfolio& portfolio);
 void menuRunStrategy(StockManager<ETF>& etfManager, StockManager<Stock>& stockManager);
-void menuCompareStrategies(StockManager<ETF>& etfManager);
+void menuCompareStrategies(StockManager<ETF>& etfManager, StockManager<Stock>& stockManager);
 void menuPortfolioSummary(Portfolio& portfolio);
 void menuTradeHistory(Portfolio& portfolio);
 
@@ -144,7 +144,7 @@ int main() {
             case 10: menuExecuteOrder(portfolio);                                   break;
             case 11: menuUndoTrade(portfolio);                                      break;
             case 12: menuRunStrategy(etfManager, stockManager);                     break;
-            case 13: menuCompareStrategies(etfManager);                             break;
+            case 13: menuCompareStrategies(etfManager, stockManager);               break;
             case 14: menuPortfolioSummary(portfolio);                               break;
             case 15: menuTradeHistory(portfolio);                                   break;
             case 16: {
@@ -384,16 +384,24 @@ void menuRunStrategy(StockManager<ETF>& etfManager, StockManager<Stock>& stockMa
     delete strategy;
 }
 
-void menuCompareStrategies(StockManager<ETF>& etfManager) {
-    ETF* spx = etfManager.findByTicker("SPX");
-    if (!spx) { cout << "SPX not loaded. Load it first." << endl; return; }
+void menuCompareStrategies(StockManager<ETF>& etfManager, StockManager<Stock>& stockManager) {
+    string ticker;
+    cout << "Ticker to compare strategies on: "; cin >> ticker;
+    for (char& c : ticker) c = toupper(c);
+
+    PriceHistory* history = nullptr;
+    ETF*   e = etfManager.findByTicker(ticker);
+    if (e) history = e->getHistory();
+    else {
+        Stock* s = stockManager.findByTicker(ticker);
+        if (s) history = s->getHistory();
+    }
+    if (!history) { cout << "Ticker not found. Load it first." << endl; return; }
 
     double monthlyCapital; int startYear, endYear;
     cout << "Monthly capital: "; cin >> monthlyCapital;
     cout << "Start year: ";      cin >> startYear;
     cout << "End year: ";        cin >> endYear;
-
-    PriceHistory* history = spx->getHistory();
 
     TradingStrategy* strategies[4];
     strategies[0] = new FixedSIPStrategy();
